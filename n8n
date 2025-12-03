@@ -1,0 +1,310 @@
+{
+  "name": "AutoParts Inc - AI Multi-Agent Smart Manufacturing",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Component Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "component-inspection",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "2",
+      "name": "Vision API Mock",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "parameters": {
+        "url": "https://mock-api.com/vision-analyze",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "body": {
+          "image_url": "={{$json[\"image_url\"]}}"
+        }
+      }
+    },
+    {
+      "id": "3",
+      "name": "Inspection LLM",
+      "type": "n8n-nodes-base.openAIAssistant",
+      "typeVersion": 1,
+      "position": [700, 300],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "prompt": "You are an inspection AI. Classify the component as DEFECTIVE or OK based on this vision output: {{$json}}"
+      }
+    },
+    {
+      "id": "4",
+      "name": "IF Defective?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [950, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"text\"]}}",
+              "operation": "contains",
+              "value2": "DEFECTIVE"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "5",
+      "name": "Send Defect Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1200, 200],
+      "parameters": {
+        "fromEmail": "alerts@autoparts.com",
+        "toEmail": "quality@autoparts.com",
+        "subject": "DEFECT DETECTED - AutoParts Inc",
+        "text": "A defective component has been detected. Details: {{$json}}"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Log Defect",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [1200, 350],
+      "parameters": {
+        "operation": "append",
+        "sheetId": "YOUR-SHEET-ID",
+        "range": "Defects!A:C",
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        },
+        "fields": {
+          "values": [
+            "={{$json[\"component_id\"]}}",
+            "DEFECTIVE",
+            "={{$now}}"
+          ]
+        }
+      }
+    },
+    {
+      "id": "7",
+      "name": "IoT Sensor Simulator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [200, 600],
+      "parameters": {
+        "code": "return [{ json: { machine: \"MX-22\", temperature: 89, vibration: 12, load: 65 }}];"
+      }
+    },
+    {
+      "id": "8",
+      "name": "Maintenance Predictor LLM",
+      "type": "n8n-nodes-base.openAIAssistant",
+      "typeVersion": 1,
+      "position": [450, 600],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "prompt": "Predict if this machine is at risk of failure: {{$json}}. Reply with 'FAILURE RISK' or 'NORMAL'."
+      }
+    },
+    {
+      "id": "9",
+      "name": "IF Maintenance Risk?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 600],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"text\"]}}",
+              "operation": "contains",
+              "value2": "FAILURE"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "10",
+      "name": "Create Maintenance Ticket",
+      "type": "n8n-nodes-base.trello",
+      "typeVersion": 1,
+      "position": [950, 500],
+      "parameters": {
+        "operation": "createCard",
+        "listId": "YOUR_LIST_ID",
+        "title": "Machine Failure Risk - AutoParts Inc",
+        "description": "A machine has been flagged with FAILURE RISK. Details: {{$json}}"
+      }
+    },
+    {
+      "id": "11",
+      "name": "Maintenance Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [950, 700],
+      "parameters": {
+        "fromEmail": "alerts@autoparts.com",
+        "toEmail": "maintenance@autoparts.com",
+        "subject": "MAINTENANCE WARNING",
+        "text": "Predictive maintenance alert: {{$json}}"
+      }
+    },
+    {
+      "id": "12",
+      "name": "Technician Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 900],
+      "parameters": {}
+    },
+    {
+      "id": "13",
+      "name": "Tech Support Agent",
+      "type": "n8n-nodes-base.openAIAssistant",
+      "typeVersion": 1,
+      "position": [450, 900],
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "prompt": "You are a technician support agent. Provide troubleshooting steps, safety instructions, and repair guides based on the technician's issue: {{$json}}"
+      }
+    },
+    {
+      "id": "14",
+      "name": "Send Technician Guide",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [700, 900],
+      "parameters": {
+        "fromEmail": "assistant@autoparts.com",
+        "toEmail": "technician@autoparts.com",
+        "subject": "Repair Instructions",
+        "text": "Here are your troubleshooting steps: {{$json[\"text\"]}}"
+      }
+    }
+  ],
+  "connections": {
+    "Component Webhook": {
+      "main": [
+        [
+          {
+            "node": "Vision API Mock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision API Mock": {
+      "main": [
+        [
+          {
+            "node": "Inspection LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inspection LLM": {
+      "main": [
+        [
+          {
+            "node": "IF Defective?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Defective?": {
+      "main": [
+        [
+          {
+            "node": "Send Defect Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Defect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IoT Sensor Simulator": {
+      "main": [
+        [
+          {
+            "node": "Maintenance Predictor LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Maintenance Predictor LLM": {
+      "main": [
+        [
+          {
+            "node": "IF Maintenance Risk?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Maintenance Risk?": {
+      "main": [
+        [
+          {
+            "node": "Create Maintenance Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Maintenance Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Technician Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Tech Support Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tech Support Agent": {
+      "main": [
+        [
+          {
+            "node": "Send Technician Guide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
